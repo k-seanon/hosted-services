@@ -14,25 +14,26 @@
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            while(!stoppingToken.IsCancellationRequested)
+            while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("cycling the background job queue");
                 try
                 {
                     var job = await _queue.DequeueAsync(stoppingToken);
                     using var scope = _serviceScopeFactory.CreateScope();
-                    await Parallel.ForEachAsync(GetService(scope.ServiceProvider, job), async (handler, token) =>
-                    {
-                        try
+                    await Parallel.ForEachAsync(GetService(scope.ServiceProvider, job),
+                        async (handler, token) =>
                         {
-                            await handler.Run(job, token);
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.LogError(exception: e, message: "Error proceesing {@Job} with {Handler}", job, handler);
-                            throw;
-                        }
-                    });
+                            try
+                            {
+                                await handler.Run(job, token);
+                            }
+                            catch (Exception e)
+                            {
+                                _logger.LogError(exception: e, message: "Error processing {@Job} with {Handler}", job, handler);
+                                throw;
+                            }
+                        });
                 }
                 catch (Exception ex)
                 {

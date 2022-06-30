@@ -26,18 +26,6 @@ builder.Services.AddTransient<IJobHandler<ConsolePrintJob>, ConsolePrintJobHandl
 var app = builder.Build();
 
 
-var taskqueue = app.Services.GetRequiredService<IBackgroundTaskQueue>();
-var context = new DefaultHttpContext();
-await taskqueue.QueueBackgroundTask(token =>
-{
-    var name = context?.User?.Identity?.Name ?? "not auth";
-     Console.WriteLine($"Did a thing {name}");
-     return ValueTask.CompletedTask;
-});
-
-var jobqueue = app.Services.GetRequiredService<IBackgroundJobQueue>();
-await jobqueue.Queue(new ConsolePrintJob("happy happy, joy joy"));
-
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -51,4 +39,24 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+var appRunTask = app.RunAsync();
+
+/* the closure problem */
+// var taskqueue = app.Services.GetRequiredService<IBackgroundTaskQueue>();
+// var context = new DefaultHttpContext();
+// await taskqueue.QueueBackgroundTask(async token =>
+// {
+//     await Task.Delay(100);
+//     var name = context.User?.Identity?.Name ?? "not auth";
+//      Console.WriteLine($"Did a thing {name}");
+// });
+// context = null;
+
+
+//the better way, your job is a dto, you can store or pass this as defined by your queue needs
+//this is leverages strong typed serialization the background service will find a registered handler for the job
+//supports multiple handlers
+var jobqueue = app.Services.GetRequiredService<IBackgroundJobQueue>();
+await jobqueue.Queue(new ConsolePrintJob("happy happy, joy joy"));
+
+await appRunTask;

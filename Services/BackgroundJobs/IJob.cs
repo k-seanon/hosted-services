@@ -7,13 +7,13 @@
 
     public interface IJobHandler
     {
-        ValueTask Run<T>(T job, CancellationToken cancellationToken);
+        ValueTask Run(object job, CancellationToken cancellationToken);
     }
     
     public interface IJobHandler<TJob> : IJobHandler
-        where TJob : IJob
+        where TJob : class, IJob
     {
-        new ValueTask Run<T>(T job, CancellationToken cancellationToken);
+        new ValueTask Run(TJob job, CancellationToken cancellationToken);
     }
     
     public class ConsolePrintJob : IJob
@@ -27,7 +27,7 @@
         public string Message { get; init; }
     }
 
-    public class ConsolePrintJobHandler : IJobHandler<ConsolePrintJob>
+    public class ConsolePrintJobHandler : BaseJobHandler<ConsolePrintJob>
     {
         private readonly ILogger<ConsolePrintJobHandler> _logger;
 
@@ -36,20 +36,23 @@
             _logger = logger;
         }
 
-        public new ValueTask Run(ConsolePrintJob job, CancellationToken cancellationToken)
+        public override ValueTask Run(ConsolePrintJob job, CancellationToken cancellationToken)
         {
             _logger.LogInformation(job.Message);
             return ValueTask.CompletedTask;
         }
-        
-        ValueTask IJobHandler<ConsolePrintJob>.Run<T>(T job, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
 
-        ValueTask IJobHandler.Run<T>(T job, CancellationToken cancellationToken)
+        public new ValueTask Run<T>(T job, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
+    }
+
+    public abstract class BaseJobHandler<TJob> : IJobHandler<TJob> where TJob : class, IJob
+    {
+        public abstract ValueTask Run(TJob job, CancellationToken cancellationToken);
+
+
+        public ValueTask Run(object job, CancellationToken cancellationToken) => Run(job as TJob, cancellationToken);
     }
 }
